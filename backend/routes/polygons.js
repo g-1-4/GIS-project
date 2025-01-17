@@ -19,7 +19,7 @@ router.post('/', async (req, res) => {
 
         const result = await pool.query(query, values);
 
-        console.log('Record entered successfully');
+        
 
         res.status(201).json({ message: 'Polygon added successfully.', id: result.rows[0].id });
     } catch (error) {
