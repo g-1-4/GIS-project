@@ -4,8 +4,10 @@
 
 html, body{
   height:100%;
-
   overflow: hidden;
+  background-image: url("/images/IndiaPic.jpg");
+  background-size: cover;
+  background-position: center;
 }
 
 /* :root {
