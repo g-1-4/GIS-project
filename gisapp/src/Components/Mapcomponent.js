@@ -209,7 +209,7 @@ function MapComponent() {
         alert(result.message);
       } else {
         alert(`Error: ${result.message}`);
-      }      
+      }
     } catch (error) {
       console.error('Error saving polygon:', error);
       alert('Failed to save polygon data.');
@@ -330,21 +330,20 @@ function MapComponent() {
 
           {/* Polygon Data */}
           <div>
-  <h4 style={{ textAlign: 'center' }}>Polygon Data</h4>
-  <p>
-    <strong>Area:</strong>{' '}
-    {unit === 'meters'
-      ? (polygonData.area * 0.000247105).toFixed(2) + ' Acres'
-      : (polygonData.area * 1.19599).toFixed(2) + ' sq yards'}
-  </p>
-  <p>
-    <strong>Perimeter:</strong>{' '}
-    {unit === 'meters'
-      ? polygonData.perimeter.toFixed(2) + ' meters'
-      : polygonData.perimeter.toFixed(2) + ' yards'}
-  </p>
-</div>
-
+            <h4 style={{ textAlign: 'center' }}>Polygon Data</h4>
+            <p>
+              <strong>Area:</strong>{' '}
+              {unit === 'meters'
+                ? `${(polygonData.area * 0.000247105).toFixed(2)} Acres`
+                : `${(polygonData.area * 1.19599).toFixed(2)} sq yards`}
+            </p>
+            <p>
+              <strong>Perimeter:</strong>{' '}
+              {unit === 'meters'
+                ? `${polygonData.perimeter.toFixed(2)} meters`
+                : `${polygonData.perimeter.toFixed(2)} yards`}
+            </p>
+          </div>
 
           {/* Form Button */}
           <button
