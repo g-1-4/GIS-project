@@ -1,10 +1,12 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 
 function SignIn() {
+  const navigate = useNavigate();
+
   const handleLogin = () => {
-    // Redirect to the React backend (gisapp)
-    window.location.href = 'http://localhost:3000';
+    // Navigate to the MapComponent route
+    navigate('/map');
   };
 
   return (
