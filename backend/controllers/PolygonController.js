@@ -8,7 +8,22 @@ const createPolygon = async (req, res, next) => {
   }
 
   try {
-    const id = await savePolygon({ name, phone, email, surveyNo, coordinates });
+    const eastPhotoPath = req.files.east_Photo ? 'uploads/' + req.files.east_Photo[0].filename : null;
+    const westPhotoPath = req.files.west_Photo ? 'uploads/' + req.files.west_Photo[0].filename : null;
+    const northPhotoPath = req.files.north_Photo ? 'uploads/' + req.files.north_Photo[0].filename : null;
+    const southPhotoPath = req.files.south_Photo ? 'uploads/' + req.files.south_Photo[0].filename : null;
+
+    const id = await savePolygon({
+      name,
+      phone,
+      email,
+      surveyNo,
+      coordinates,
+      eastPhotoPath,
+      westPhotoPath,
+      northPhotoPath,
+      southPhotoPath
+    });
     res.status(201).json({ message: 'Polygon saved successfully.', id });
   } catch (error) {
     next(error);

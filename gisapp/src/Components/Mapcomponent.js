@@ -24,16 +24,19 @@ function MapComponent() {
     phone: '',
     email: '',
     surveyNo: '',
+    east_Photo: null,
+    west_Photo: null,
+    north_Photo: null,
+    south_Photo: null,
   });
   const [polygonCoordinates, setPolygonCoordinates] = useState([]);
   const [fetchedPolygons, setFetchedPolygons] = useState([]);
-  const [selectedPolygon, setSelectedPolygon] = useState(null); 
-  const [infoWindowPosition, setInfoWindowPosition] = useState(null); 
+  const [selectedPolygon, setSelectedPolygon] = useState(null);
+  const [infoWindowPosition, setInfoWindowPosition] = useState(null);
   const polygonRef = useRef(null);
   const undoStack = useRef([]);
-  const [loading, setLoading] = useState(false); 
+  const [loading, setLoading] = useState(false);
   const [isInfoBoxOpen, setIsInfoBoxOpen] = useState(false);
-
 
   useEffect(() => {
     const fetchPolygons = async () => {
@@ -49,21 +52,24 @@ function MapComponent() {
     fetchPolygons();
   }, []);
 
+  const handleFileChange = (e) => {
+    const { name, files } = e.target;
+    if (files.length > 0) {
+      setPolygonDetails((prev) => ({ ...prev, [name]: files[0] }));
+    }
+  };
+
   const handlePolygonClick = (polygonId) => {
     const polygon = fetchedPolygons.find((poly) => poly.id === polygonId);
     if (!polygon) return;
-  
-    
+
     const path = polygon.coordinates.coordinates[0].map(([lng, lat]) => new google.maps.LatLng(lat, lng));
-  
-    
+
     const area = google.maps.geometry.spherical.computeArea(path);
     const perimeter = google.maps.geometry.spherical.computeLength(path);
-  
-    
+
     setPolygonData({ area, perimeter });
-  
-    
+
     setSelectedPolygon(polygon);
     setInfoWindowPosition({
       lat: polygon.coordinates.coordinates[0][0][1],
@@ -71,82 +77,74 @@ function MapComponent() {
     });
     setIsInfoBoxOpen(true);
   };
-  
-  
-  
+
   const handleCloseInfoBox = () => {
-    setIsInfoBoxOpen(false); 
-    setPolygonData({ area: 0.0, perimeter: 0.0 }); 
+    setIsInfoBoxOpen(false);
+    setPolygonData({ area: 0.0, perimeter: 0.0 });
   };
-  
-  
 
   const handleOnPolygonComplete = (polygon) => {
     if (polygonRef.current) {
       polygonRef.current.setMap(null);
     }
-  
+
     polygonRef.current = polygon;
-  
+
     const path = polygon.getPath().getArray();
     const coordinates = path.map((latLng) => ({
       lat: latLng.lat(),
       lng: latLng.lng(),
     }));
-  
-    
+
     const latLngPath = path.map((latLng) => new google.maps.LatLng(latLng.lat(), latLng.lng()));
-  
-    
+
     let isOverlapping = false;
     fetchedPolygons.forEach((existingPolygon) => {
       const existingLatLngPath = existingPolygon.coordinates.coordinates[0].map(
         ([lng, lat]) => new google.maps.LatLng(lat, lng)
       );
-  
+
       latLngPath.forEach((point) => {
         if (google.maps.geometry.poly.containsLocation(point, new google.maps.Polygon({ paths: existingLatLngPath }))) {
           isOverlapping = true;
         }
       });
     });
-  
+
     if (isOverlapping) {
       alert('Error: The new polygon overlaps with an existing land parcel.');
-      polygon.setMap(null); 
+      polygon.setMap(null);
       return;
     }
-  
+
     const area = google.maps.geometry.spherical.computeArea(polygon.getPath());
     const perimeter = google.maps.geometry.spherical.computeLength(polygon.getPath());
-  
+
     setPolygonCoordinates(coordinates);
     setPolygonData({ area, perimeter });
-  
+
     undoStack.current.push([...coordinates]);
-  
+
     const updatePolygonData = () => {
       const updatedPath = polygon.getPath().getArray();
       const updatedCoordinates = updatedPath.map((latLng) => ({
         lat: latLng.lat(),
         lng: latLng.lng(),
       }));
-  
+
       const updatedArea = google.maps.geometry.spherical.computeArea(polygon.getPath());
       const updatedPerimeter = google.maps.geometry.spherical.computeLength(polygon.getPath());
-  
+
       setPolygonCoordinates(updatedCoordinates);
       setPolygonData({ area: updatedArea, perimeter: updatedPerimeter });
-  
+
       undoStack.current.push([...updatedCoordinates]);
     };
-  
+
     polygon.getPath().addListener('set_at', updatePolygonData);
     polygon.getPath().addListener('insert_at', updatePolygonData);
     polygon.getPath().addListener('remove_at', updatePolygonData);
   };
-  
-  
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -185,36 +183,43 @@ function MapComponent() {
       geoJsonCoordinates.push(geoJsonCoordinates[0]);
     }
 
-    const data = {
-      ...polygonDetails,
-      coordinates: {
-        type: 'Polygon',
-        coordinates: [geoJsonCoordinates],
-      },
-    };
+    const formData = new FormData();
+    formData.append('name', polygonDetails.name);
+    formData.append('phone', polygonDetails.phone);
+    formData.append('email', polygonDetails.email);
+    formData.append('surveyNo', polygonDetails.surveyNo);
+    formData.append('coordinates', JSON.stringify({
+      type: 'Polygon',
+      coordinates: [geoJsonCoordinates],
+    }));
+
+    if (polygonDetails.east_Photo) formData.append('east_Photo', polygonDetails.east_Photo);
+    if (polygonDetails.west_Photo) formData.append('west_Photo', polygonDetails.west_Photo);
+    if (polygonDetails.north_Photo) formData.append('north_Photo', polygonDetails.north_Photo);
+    if (polygonDetails.south_Photo) formData.append('south_Photo', polygonDetails.south_Photo);
 
     try {
-      setLoading(true); 
+      setLoading(true);
       const response = await fetch('http://localhost:5000/api/polygons', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
+        body: formData,
       });
 
       const result = await response.json();
 
       if (response.ok) {
         alert(result.message);
+        const fetchResponse = await fetch('http://localhost:5000/api/polygons');
+        const fetchData = await fetchResponse.json();
+        setFetchedPolygons(fetchData);
       } else {
         alert(`Error: ${result.message}`);
-      }      
+      }
     } catch (error) {
       console.error('Error saving polygon:', error);
       alert('Failed to save polygon data.');
     } finally {
-      setLoading(false); // Reset loading state
+      setLoading(false);
     }
   };
 
@@ -248,9 +253,7 @@ function MapComponent() {
       googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
       libraries={['drawing', 'geometry']}
     >
-      
       <div style={{ display: 'flex', height: '100vh' }}>
-        {/* Map Container */}
         <div style={{ flex: 4, position: 'relative' }}>
           <GoogleMap
             mapContainerStyle={containerStyle}
@@ -274,7 +277,6 @@ function MapComponent() {
                 },
               }}
             />
-            {/* Display fetched polygons */}
             {fetchedPolygons.map((polygon, index) => (
               <Polygon
                 key={index}
@@ -291,22 +293,66 @@ function MapComponent() {
                 onClick={() => handlePolygonClick(polygon.id)}
               />
             ))}
-            {/* InfoWindow for clicked polygon */}
-            {selectedPolygon && infoWindowPosition && (
-              <InfoWindow position={infoWindowPosition} onCloseClick={() => setSelectedPolygon(null)}>
-                <div>
-                  <p><strong>Name:</strong> {selectedPolygon.name}</p>
+            {selectedPolygon && infoWindowPosition && isInfoBoxOpen && (
+              <InfoWindow
+                position={infoWindowPosition}
+                onCloseClick={handleCloseInfoBox}
+              >
+                <div style={{ maxWidth: '300px' }}>
+                  <h3>{selectedPolygon.name}</h3>
                   <p><strong>Phone:</strong> {selectedPolygon.phone}</p>
                   <p><strong>Survey No:</strong> {selectedPolygon.surveyNo}</p>
+                  <div style={{ marginTop: '10px' }}>
+                    <h4>Property Photos</h4>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+                      {selectedPolygon.east_Photo && (
+                        <div>
+                          <p>East Side:</p>
+                          <img
+                            src={`http://localhost:5000/${selectedPolygon.east_Photo}`}
+                            alt="East View"
+                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+                      {selectedPolygon.west_Photo && (
+                        <div>
+                          <p>West Side:</p>
+                          <img
+                            src={`http://localhost:5000/${selectedPolygon.west_Photo}`}
+                            alt="West View"
+                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+                      {selectedPolygon.north_Photo && (
+                        <div>
+                          <p>North Side:</p>
+                          <img
+                            src={`http://localhost:5000/${selectedPolygon.north_Photo}`}
+                            alt="North View"
+                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+                      {selectedPolygon.south_Photo && (
+                        <div>
+                          <p>South Side:</p>
+                          <img
+                            src={`http://localhost:5000/${selectedPolygon.south_Photo}`}
+                            alt="South View"
+                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </InfoWindow>
             )}
           </GoogleMap>
         </div>
-
-        {/* Controls and Form */}
         <div style={{ flex: 1, padding: '20px', borderLeft: '1px solid #ccc', overflowY: 'auto' }}>
-          {/* Buttons */}
           <div>
             <button
               onClick={handleChangeUnits}
@@ -327,34 +373,27 @@ function MapComponent() {
               Undo
             </button>
           </div>
-
-          {/* Polygon Data */}
           <div>
-  <h4 style={{ textAlign: 'center' }}>Polygon Data</h4>
-  <p>
-    <strong>Area:</strong>{' '}
-    {unit === 'meters'
-      ? (polygonData.area * 0.000247105).toFixed(2) + ' Acres'
-      : (polygonData.area * 1.19599).toFixed(2) + ' sq yards'}
-  </p>
-  <p>
-    <strong>Perimeter:</strong>{' '}
-    {unit === 'meters'
-      ? polygonData.perimeter.toFixed(2) + ' meters'
-      : polygonData.perimeter.toFixed(2) + ' yards'}
-  </p>
-</div>
-
-
-          {/* Form Button */}
+            <h4 style={{ textAlign: 'center' }}>Polygon Data</h4>
+            <p>
+              <strong>Area:</strong>{' '}
+              {unit === 'meters'
+                ? (polygonData.area * 0.000247105).toFixed(2) + ' Acres'
+                : (polygonData.area * 1.19599).toFixed(2) + ' sq yards'}
+            </p>
+            <p>
+              <strong>Perimeter:</strong>{' '}
+              {unit === 'meters'
+                ? polygonData.perimeter.toFixed(2) + ' meters'
+                : polygonData.perimeter.toFixed(2) + ' yards'}
+            </p>
+          </div>
           <button
             onClick={() => setShowForm((prev) => !prev)}
             style={{ marginTop: '10px', padding: '10px 20px', cursor: 'pointer', width: '100%', backgroundColor: 'blue', color: 'white', border: 'none', borderRadius: '5px' }}
           >
             Add to Map
           </button>
-
-          {/* Form Section */}
           {showForm && (
             <form onSubmit={handleSubmit} style={{ marginTop: '20px' }}>
               <div>
@@ -401,6 +440,49 @@ function MapComponent() {
                   style={{ display: 'block', width: '100%', margin: '10px 0', padding: '5px' }}
                 />
               </div>
+              <div style={{ marginTop: '20px' }}>
+                <h4>Upload Property Photos</h4>
+                <div>
+                  <label>East Side Photo:</label>
+                  <input
+                    type="file"
+                    name="east_Photo"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ display: 'block', width: '100%', margin: '10px 0' }}
+                  />
+                </div>
+                <div>
+                  <label>West Side Photo:</label>
+                  <input
+                    type="file"
+                    name="west_Photo"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ display: 'block', width: '100%', margin: '10px 0' }}
+                  />
+                </div>
+                <div>
+                  <label>North Side Photo:</label>
+                  <input
+                    type="file"
+                    name="north_Photo"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ display: 'block', width: '100%', margin: '10px 0' }}
+                  />
+                </div>
+                <div>
+                  <label>South Side Photo:</label>
+                  <input
+                    type="file"
+                    name="south_Photo"
+                    accept="image/*"
+                    onChange={handleFileChange}
+                    style={{ display: 'block', width: '100%', margin: '10px 0' }}
+                  />
+                </div>
+              </div>
               <button
                 type="submit"
                 style={{
@@ -411,6 +493,7 @@ function MapComponent() {
                   border: 'none',
                   borderRadius: '5px',
                   width: '100%',
+                  marginTop: '20px'
                 }}
                 disabled={loading}
               >
