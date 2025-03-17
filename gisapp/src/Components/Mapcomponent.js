@@ -1,6 +1,8 @@
-/* global google */
+/*global google*/
 import React, { useState, useRef, useEffect } from 'react';
 import { GoogleMap, LoadScript, DrawingManager, Polygon, InfoWindow } from '@react-google-maps/api';
+import Lightbox from 'react-image-lightbox';
+import 'react-image-lightbox/style.css'; // Import the lightbox styles
 
 const containerStyle = {
   width: '100%',
@@ -37,6 +39,22 @@ function MapComponent() {
   const undoStack = useRef([]);
   const [loading, setLoading] = useState(false);
   const [isInfoBoxOpen, setIsInfoBoxOpen] = useState(false);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [photoIndex, setPhotoIndex] = useState(0);
+
+  const photos = selectedPolygon
+    ? [
+        selectedPolygon.east_Photo,
+        selectedPolygon.west_Photo,
+        selectedPolygon.north_Photo,
+        selectedPolygon.south_Photo,
+      ].filter((photo) => photo)
+    : [];
+
+  const handlePhotoClick = (index) => {
+    setPhotoIndex(index);
+    setIsLightboxOpen(true);
+  };
 
   useEffect(() => {
     const fetchPolygons = async () => {
@@ -212,6 +230,7 @@ function MapComponent() {
         const fetchResponse = await fetch('http://localhost:5000/api/polygons');
         const fetchData = await fetchResponse.json();
         setFetchedPolygons(fetchData);
+        window.location.reload();
       } else {
         alert(`Error: ${result.message}`);
       }
@@ -307,41 +326,45 @@ function MapComponent() {
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
                       {selectedPolygon.east_Photo && (
                         <div>
-                          <p>East Side:</p>
+                          <p><strong>East Side:</strong></p>
                           <img
                             src={`http://localhost:5000/${selectedPolygon.east_Photo}`}
                             alt="East View"
-                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                            style={{ width: '120px', height: '90px', objectFit: 'cover', cursor: 'pointer' }}
+                            onClick={() => handlePhotoClick(0)}
                           />
                         </div>
                       )}
                       {selectedPolygon.west_Photo && (
                         <div>
-                          <p>West Side:</p>
+                          <p><strong>West Side:</strong></p>
                           <img
                             src={`http://localhost:5000/${selectedPolygon.west_Photo}`}
                             alt="West View"
-                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                            style={{ width: '120px', height: '90px', objectFit: 'cover', cursor: 'pointer' }}
+                            onClick={() => handlePhotoClick(1)}
                           />
                         </div>
                       )}
                       {selectedPolygon.north_Photo && (
                         <div>
-                          <p>North Side:</p>
+                          <p><strong>North Side:</strong></p>
                           <img
                             src={`http://localhost:5000/${selectedPolygon.north_Photo}`}
                             alt="North View"
-                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                            style={{ width: '120px', height: '90px', objectFit: 'cover', cursor: 'pointer' }}
+                            onClick={() => handlePhotoClick(2)}
                           />
                         </div>
                       )}
                       {selectedPolygon.south_Photo && (
                         <div>
-                          <p>South Side:</p>
+                          <p><strong>South Side:</strong></p>
                           <img
                             src={`http://localhost:5000/${selectedPolygon.south_Photo}`}
                             alt="South View"
-                            style={{ width: '120px', height: '90px', objectFit: 'cover' }}
+                            style={{ width: '120px', height: '90px', objectFit: 'cover', cursor: 'pointer' }}
+                            onClick={() => handlePhotoClick(3)}
                           />
                         </div>
                       )}
@@ -503,6 +526,16 @@ function MapComponent() {
           )}
         </div>
       </div>
+      {isLightboxOpen && (
+        <Lightbox
+          mainSrc={`http://localhost:5000/${photos[photoIndex]}`}
+          nextSrc={`http://localhost:5000/${photos[(photoIndex + 1) % photos.length]}`}
+          prevSrc={`http://localhost:5000/${photos[(photoIndex + photos.length - 1) % photos.length]}`}
+          onCloseRequest={() => setIsLightboxOpen(false)}
+          onMovePrevRequest={() => setPhotoIndex((photoIndex + photos.length - 1) % photos.length)}
+          onMoveNextRequest={() => setPhotoIndex((photoIndex + 1) % photos.length)}
+        />
+      )}
     </LoadScript>
   );
 }
