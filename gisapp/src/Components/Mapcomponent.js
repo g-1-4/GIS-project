@@ -1,8 +1,8 @@
 /*global google*/
 import React, { useState, useRef, useEffect } from 'react';
-import { GoogleMap, LoadScript, DrawingManager, Polygon, InfoWindow } from '@react-google-maps/api';
+import { GoogleMap, LoadScript, DrawingManager, Polygon, InfoWindow, Autocomplete, Marker } from '@react-google-maps/api';
 import Lightbox from 'react-image-lightbox';
-import 'react-image-lightbox/style.css'; // Import the lightbox styles
+import 'react-image-lightbox/style.css';
 
 const containerStyle = {
   width: '100%',
@@ -15,10 +15,7 @@ const center = {
 };
 
 function MapComponent() {
-  const [polygonData, setPolygonData] = useState({
-    area: 0.0,
-    perimeter: 0.0,
-  });
+  const [polygonData, setPolygonData] = useState({ area: 0.0, perimeter: 0.0 });
   const [unit, setUnit] = useState('meters');
   const [showForm, setShowForm] = useState(false);
   const [polygonDetails, setPolygonDetails] = useState({
@@ -41,6 +38,10 @@ function MapComponent() {
   const [isInfoBoxOpen, setIsInfoBoxOpen] = useState(false);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [photoIndex, setPhotoIndex] = useState(0);
+  const [mapCenter, setMapCenter] = useState(center);
+  const [markerPosition, setMarkerPosition] = useState(null);
+  const autocompleteRef = useRef(null);
+  const [mapType, setMapType] = useState('satellite');
 
   const photos = selectedPolygon
     ? [
@@ -55,7 +56,9 @@ function MapComponent() {
     setPhotoIndex(index);
     setIsLightboxOpen(true);
   };
-
+  useEffect(() => {
+    setMapType('satellite'); // Ensure map is in satellite view when component mounts
+  }, []);
   useEffect(() => {
     const fetchPolygons = async () => {
       try {
@@ -267,18 +270,97 @@ function MapComponent() {
     }
   };
 
+  const onLoad = (autocomplete) => {
+    autocompleteRef.current = autocomplete;
+  };
+
+  const onPlaceChanged = () => {
+    if (autocompleteRef.current !== null) {
+      const place = autocompleteRef.current.getPlace();
+      if (place.geometry && place.geometry.location) {
+        const location = {
+          lat: place.geometry.location.lat(),
+          lng: place.geometry.location.lng(),
+        };
+        setMapCenter(location);
+        setMarkerPosition(location);
+      } else {
+        alert("No location found for the selected place.");
+      }
+    }
+  };
+
+  const clearSearch = () => {
+    setMapCenter(center);
+    setMarkerPosition(null);
+  };
+
+  const toggleMapType = () => {
+    setMapType((prevMapType) => (prevMapType === 'satellite' ? 'roadmap' : 'satellite'));
+  };
+
   return (
     <LoadScript
-      googleMapsApiKey={process.env.REACT_APP_GOOGLE_MAPS_API_KEY}
-      libraries={['drawing', 'geometry']}
+      googleMapsApiKey="AIzaSyA_Z1_l75AWkfTNqvjX5Sp0wMejwP33ZTo"
+      libraries={['drawing', 'geometry', 'places']}
+      loadingElement={<div>Loading...</div>}
     >
       <div style={{ display: 'flex', height: '100vh' }}>
         <div style={{ flex: 4, position: 'relative' }}>
+          <div style={{ position: 'absolute', top: '40px', left: '5px', zIndex: 1 }}>
+            <Autocomplete onLoad={onLoad} onPlaceChanged={onPlaceChanged}>
+              <input
+                type="text"
+                placeholder="Search for a location"
+                style={{
+                  width: '300px',
+                  padding: '10px',
+                  borderRadius: '5px',
+                  border: '1px solid #ccc',
+                  boxShadow: '0 2px 6px rgba(0, 0, 0, 0.3)',
+                }}
+              />
+            </Autocomplete>
+            <button
+              onClick={clearSearch}
+              style={{
+                marginLeft: '3px',
+                marginTop: '5px',
+                padding: '10px',
+                backgroundColor: 'red',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              Clear Search
+            </button>
+            <button
+              onClick={toggleMapType}
+              style={{
+                marginLeft: '3px',
+                marginTop: '5px',
+                padding: '10px',
+                backgroundColor: 'blue',
+                color: 'white',
+                border: 'none',
+                borderRadius: '5px',
+                cursor: 'pointer',
+              }}
+            >
+              {mapType === 'satellite' ? 'Map' : 'Satellite'}
+            </button>
+          </div>
+
           <GoogleMap
             mapContainerStyle={containerStyle}
-            center={center}
+            center={mapCenter}
             zoom={18}
-            mapTypeId="satellite"
+            mapTypeId={mapType}
+            options={{
+              mapTypeControl: false, // Disable default Map/Satellite button
+            }} // Set the map type based on state
           >
             <DrawingManager
               onPolygonComplete={handleOnPolygonComplete}
@@ -373,6 +455,7 @@ function MapComponent() {
                 </div>
               </InfoWindow>
             )}
+            {markerPosition && <Marker position={markerPosition} />}
           </GoogleMap>
         </div>
         <div style={{ flex: 1, padding: '20px', borderLeft: '1px solid #ccc', overflowY: 'auto' }}>
